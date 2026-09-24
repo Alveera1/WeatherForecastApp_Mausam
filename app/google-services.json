@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "698111015017",
+    "project_id": "weatherforecastapp-a2b79",
+    "storage_bucket": "weatherforecastapp-a2b79.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:698111015017:android:636f73b639093792f74af8",
+        "android_client_info": {
+          "package_name": "com.example.mausam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoMd10IGIaVwVfNf5rBxwKHSH0HtMFaz8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
