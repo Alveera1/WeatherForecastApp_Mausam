@@ -3,6 +3,7 @@ package com.example.mausam;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageButton;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,8 +18,12 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity {
 
     private View btnViewFavorites;
+    private ImageButton btnFavorite;
     private RecyclerView rvForecast;
     private ForecastAdapter forecastAdapter;
+
+    // Remembers whether the current city is a favorite (UI only for now)
+    private boolean isFavorite = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Connect views from the layout to this code
         btnViewFavorites = findViewById(R.id.btnViewFavorites);
+        btnFavorite = findViewById(R.id.btnFavorite);
         rvForecast = findViewById(R.id.rvForecast);
 
         // Set up the forecast row (scrolls sideways)
@@ -42,9 +48,25 @@ public class MainActivity extends AppCompatActivity {
         rvForecast.setAdapter(forecastAdapter);
         showPlaceholderForecast();
 
+        // Heart button: tap to switch between empty and filled
+        updateFavoriteIcon();
+        btnFavorite.setOnClickListener(v -> {
+            isFavorite = !isFavorite;
+            updateFavoriteIcon();
+            // TODO (integration): call FirebaseManager.addFavorite / deleteFavorite here
+        });
+
         // When tapped, open the Favorites screen
         btnViewFavorites.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, FavoritesActivity.class)));
+    }
+
+    // Shows the filled heart when favorite, the empty heart when not
+    private void updateFavoriteIcon() {
+        btnFavorite.setImageResource(
+                isFavorite ? R.drawable.ic_heart_filled : R.drawable.ic_heart_outline);
+        btnFavorite.setContentDescription(
+                isFavorite ? "Remove from favorites" : "Add to favorites");
     }
 
     // Fake data for designing the screen. Person 2's real data replaces this later.
