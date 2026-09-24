@@ -12,6 +12,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -33,9 +34,16 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvCityName;
     private RecyclerView rvForecast;
     private ForecastAdapter forecastAdapter;
+    private FirebaseManager firebaseManager;
 
-    // Remembers whether the current city is a favorite (UI only for now)
+    // Whether the current city is saved, and its Firebase document id (needed to delete it)
     private boolean isFavorite = false;
+    private String favoriteDocId = null;
+
+    // Placeholder values for the card.
+    // TODO (integration): fill these from Person 2's WeatherResponse
+    private double currentTemperature = 28.0;
+    private String currentCondition = "Partly Cloudy";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +65,9 @@ public class MainActivity extends AppCompatActivity {
         tvCityName = findViewById(R.id.tvCityName);
         rvForecast = findViewById(R.id.rvForecast);
 
+        // Alveera's Firebase code
+        firebaseManager = new FirebaseManager();
+
         // Set up the forecast row (scrolls sideways)
         forecastAdapter = new ForecastAdapter();
         rvForecast.setLayoutManager(
@@ -73,17 +84,50 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        // Heart button: tap to switch between empty and filled
+        // Heart button: save or remove the current city
         updateFavoriteIcon();
-        btnFavorite.setOnClickListener(v -> {
-            isFavorite = !isFavorite;
-            updateFavoriteIcon();
-            // TODO (integration): call FirebaseManager.addFavorite / deleteFavorite here
-        });
+        btnFavorite.setOnClickListener(v -> toggleFavorite());
 
         // When tapped, open the Favorites screen
         btnViewFavorites.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, FavoritesActivity.class)));
+    }
+
+    // Saves the current city if it isn't saved, removes it if it is
+    private void toggleFavorite() {
+        btnFavorite.setEnabled(false); // stops double taps while Firebase is working
+
+        if (!isFavorite) {
+            FavoriteCity city = new FavoriteCity(
+                    tvCityName.getText().toString(), currentTemperature, currentCondition);
+            firebaseManager.addFavorite(
+                    city,
+                    documentReference -> {
+                        isFavorite = true;
+                        favoriteDocId = documentReference.getId();
+                        updateFavoriteIcon();
+                        btnFavorite.setEnabled(true);
+                    },
+                    e -> {
+                        btnFavorite.setEnabled(true);
+                        Toast.makeText(this, "Couldn't save city. Try again.",
+                                Toast.LENGTH_SHORT).show();
+                    });
+        } else {
+            firebaseManager.deleteFavorite(
+                    favoriteDocId,
+                    unused -> {
+                        isFavorite = false;
+                        favoriteDocId = null;
+                        updateFavoriteIcon();
+                        btnFavorite.setEnabled(true);
+                    },
+                    e -> {
+                        btnFavorite.setEnabled(true);
+                        Toast.makeText(this, "Couldn't remove city. Try again.",
+                                Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
     // PRETEND search, used only to test the spinner and error UI.
@@ -104,7 +148,9 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 tvCityName.setText(city);
                 isFavorite = false;
+                favoriteDocId = null;
                 updateFavoriteIcon();
+                firebaseManager.addSearchHistory(city);
             }
         }, 1500);
     }

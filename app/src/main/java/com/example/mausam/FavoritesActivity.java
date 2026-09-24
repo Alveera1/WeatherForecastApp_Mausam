@@ -1,8 +1,10 @@
 package com.example.mausam;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -12,17 +14,22 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.firestore.DocumentSnapshot;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class FavoritesActivity extends AppCompatActivity {
+
+    private static final String TAG = "FavoritesActivity";
+    private static final String EMPTY_MESSAGE =
+            "No favorite cities yet.\nTap the heart on a city to save it.";
 
     private RecyclerView rvFavorites;
     private TextView tvEmptyFavorites;
     private FavoritesAdapter adapter;
-
-    // The list currently shown on screen (fake data for now)
-    private final List<FavoritesAdapter.FavoriteUiItem> currentItems = new ArrayList<>();
+    private FirebaseManager firebaseManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,31 +51,69 @@ public class FavoritesActivity extends AppCompatActivity {
         rvFavorites.setLayoutManager(new LinearLayoutManager(this));
         rvFavorites.setAdapter(adapter);
 
-        loadPlaceholderFavorites();
+        // Start listening to Alveera's Firebase code
+        firebaseManager = new FirebaseManager();
+        listenToFavorites();
     }
 
-    // Fake data for designing the screen.
-    // TODO (integration): replace with Alveera's FirebaseManager.getFavorites(listener)
-    private void loadPlaceholderFavorites() {
-        currentItems.clear();
-        currentItems.add(new FavoritesAdapter.FavoriteUiItem("1", "Pune", "Partly Cloudy", "28°C"));
-        currentItems.add(new FavoritesAdapter.FavoriteUiItem("2", "Mumbai", "Humid", "31°C"));
-        currentItems.add(new FavoritesAdapter.FavoriteUiItem("3", "Delhi", "Sunny", "35°C"));
-        showFavorites(currentItems);
+    // Live list: this runs once at the start, and again every time favorites change
+    private void listenToFavorites() {
+        firebaseManager.getFavorites((snapshots, error) -> {
+            // Ignore updates that arrive after this screen was closed
+            if (isFinishing() || isDestroyed()) return;
+
+            if (error != null) {
+                Log.e(TAG, "getFavorites failed", error);
+                showMessage("Couldn't load favorites.\n" + error.getMessage());
+                return;
+            }
+
+            List<FavoritesAdapter.FavoriteUiItem> items = new ArrayList<>();
+            if (snapshots != null) {
+                for (DocumentSnapshot doc : snapshots.getDocuments()) {
+                    // Read only the fields we need (ignores the timestamp on purpose)
+                    String city = doc.getString("city");
+                    if (city == null) continue;
+
+                    String condition = doc.getString("condition");
+                    Double temperature = doc.getDouble("temperature");
+
+                    items.add(new FavoritesAdapter.FavoriteUiItem(
+                            doc.getId(),
+                            city,
+                            condition != null ? condition : "",
+                            temperature != null
+                                    ? String.format(Locale.getDefault(), "%.0f°C", temperature)
+                                    : "--"));
+                }
+            }
+
+            adapter.setItems(items);
+            if (items.isEmpty()) {
+                showMessage(EMPTY_MESSAGE);
+            } else {
+                showList();
+            }
+        });
     }
 
     // Runs when the user taps the trash icon on a row
-    // TODO (integration): call FirebaseManager.deleteFavorite(item.id, onSuccess, onFailure)
     private void onDeleteClick(FavoritesAdapter.FavoriteUiItem item) {
-        currentItems.remove(item);
-        showFavorites(currentItems);
+        firebaseManager.deleteFavorite(
+                item.id,
+                unused -> { /* nothing to do: the live list refreshes by itself */ },
+                e -> Toast.makeText(this, "Couldn't remove city. Try again.",
+                        Toast.LENGTH_SHORT).show());
     }
 
-    // Shows the list, or the "no favorites" message when the list is empty
-    private void showFavorites(List<FavoritesAdapter.FavoriteUiItem> items) {
-        adapter.setItems(new ArrayList<>(items));
-        boolean isEmpty = items.isEmpty();
-        tvEmptyFavorites.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
-        rvFavorites.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+    private void showList() {
+        rvFavorites.setVisibility(View.VISIBLE);
+        tvEmptyFavorites.setVisibility(View.GONE);
+    }
+
+    private void showMessage(String message) {
+        tvEmptyFavorites.setText(message);
+        tvEmptyFavorites.setVisibility(View.VISIBLE);
+        rvFavorites.setVisibility(View.GONE);
     }
 }
