@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">Mausam</string>
+    <string name="app_tagline">Your weather, made simple</string>
+
+    <string name="search_hint">Search city...</string>
+    <string name="forecast_title">5-Day Forecast</string>
+    <string name="favorites_title">Favorite Cities</string>
+
+    <string name="placeholder_city">Pune</string>
+    <string name="placeholder_temp">28°C</string>
+    <string name="placeholder_condition">Partly Cloudy</string>
+    <string name="placeholder_feels_like">Feels like 30°C</string>
+    <string name="placeholder_humidity">Humidity: 65%</string>
+    <string name="placeholder_wind">Wind: 12 km/h</string>
+    <string name="placeholder_pressure">Pressure: 1012 hPa</string>
+
+    <string name="error_default">Something went wrong. Please try again.</string>
 </resources>
