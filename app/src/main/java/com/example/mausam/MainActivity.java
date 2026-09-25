@@ -3,8 +3,6 @@ package com.example.mausam;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -22,7 +20,15 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.Arrays;
+import com.example.mausam.models.Forecast;
+import com.example.mausam.models.WeatherResponse;
+import com.example.mausam.repository.WeatherRepository;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,18 +38,24 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private TextView tvError;
     private TextView tvCityName;
+    private TextView tvTemperature;
+    private TextView tvCondition;
+    private TextView tvFeelsLike;
+    private TextView tvHumidity;
+    private TextView tvWind;
+    private TextView tvPressure;
     private RecyclerView rvForecast;
     private ForecastAdapter forecastAdapter;
     private FirebaseManager firebaseManager;
+    private WeatherRepository weatherRepository;
 
     // Whether the current city is saved, and its Firebase document id (needed to delete it)
     private boolean isFavorite = false;
     private String favoriteDocId = null;
 
-    // Placeholder values for the card.
-    // TODO (integration): fill these from Person 2's WeatherResponse
-    private double currentTemperature = 28.0;
-    private String currentCondition = "Partly Cloudy";
+    // Real values from Person 2's API, filled in after a successful search
+    private double currentTemperature = 0;
+    private String currentCondition = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,17 +75,23 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         tvError = findViewById(R.id.tvError);
         tvCityName = findViewById(R.id.tvCityName);
+        tvTemperature = findViewById(R.id.tvTemperature);
+        tvCondition = findViewById(R.id.tvCondition);
+        tvFeelsLike = findViewById(R.id.tvFeelsLike);
+        tvHumidity = findViewById(R.id.tvHumidity);
+        tvWind = findViewById(R.id.tvWind);
+        tvPressure = findViewById(R.id.tvPressure);
         rvForecast = findViewById(R.id.rvForecast);
 
-        // Alveera's Firebase code
+        // Alveera's Firebase code and Person 2's weather code
         firebaseManager = new FirebaseManager();
+        weatherRepository = new WeatherRepository();
 
         // Set up the forecast row (scrolls sideways)
         forecastAdapter = new ForecastAdapter();
         rvForecast.setLayoutManager(
                 new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvForecast.setAdapter(forecastAdapter);
-        showPlaceholderForecast();
 
         // Search bar: runs when the user presses the search key on the keyboard
         etSearchCity.setOnEditorActionListener((v, actionId, event) -> {
@@ -91,6 +109,105 @@ public class MainActivity extends AppCompatActivity {
         // When tapped, open the Favorites screen
         btnViewFavorites.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, FavoritesActivity.class)));
+
+        // Show a real city right away, so the screen isn't empty at first
+        searchCity("Pune");
+    }
+
+    // Asks Person 2's code for real weather, then shows it on the card
+    private void searchCity(String city) {
+        hideKeyboard();
+
+        if (city.isEmpty()) {
+            showError("Please enter a city name");
+            return;
+        }
+
+        showLoading();
+
+        weatherRepository.getWeather(city, new WeatherRepository.ResultCallback<WeatherResponse>() {
+            @Override
+            public void onSuccess(WeatherResponse data) {
+                hideLoading();
+                showWeather(data);
+                firebaseManager.addSearchHistory(city);
+                loadForecast(city);
+            }
+
+            @Override
+            public void onError(String message) {
+                hideLoading();
+                showError(message);
+            }
+        });
+    }
+
+    // Fills the weather card with real data
+    private void showWeather(WeatherResponse data) {
+        tvCityName.setText(data.name);
+        currentTemperature = data.main.temp;
+        tvTemperature.setText(String.format(Locale.getDefault(), "%.0f°C", data.main.temp));
+        tvFeelsLike.setText(String.format(Locale.getDefault(), "Feels like %.0f°C", data.main.feelsLike));
+        tvHumidity.setText(String.format(Locale.getDefault(), "Humidity: %d%%", data.main.humidity));
+        tvPressure.setText(String.format(Locale.getDefault(), "Pressure: %d hPa", data.main.pressure));
+
+        if (data.wind != null) {
+            tvWind.setText(String.format(Locale.getDefault(), "Wind: %.0f km/h", data.wind.speed));
+        }
+
+        if (data.weather != null && !data.weather.isEmpty()) {
+            currentCondition = data.weather.get(0).main;
+            tvCondition.setText(data.weather.get(0).description);
+        }
+
+        // A new city always starts as not-favorite; the Favorites screen shows the real status
+        isFavorite = false;
+        favoriteDocId = null;
+        updateFavoriteIcon();
+    }
+
+    // Asks Person 2's code for the 5-day forecast, then fills the forecast row
+    private void loadForecast(String city) {
+        weatherRepository.getForecast(city, new WeatherRepository.ResultCallback<List<Forecast>>() {
+            @Override
+            public void onSuccess(List<Forecast> data) {
+                showForecast(data);
+            }
+
+            @Override
+            public void onError(String message) {
+                // The main card already loaded, so just leave the forecast row as it was
+            }
+        });
+    }
+
+    private void showForecast(List<Forecast> forecastList) {
+        List<ForecastAdapter.ForecastUiItem> uiItems = new ArrayList<>();
+        SimpleDateFormat dayFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+
+        for (Forecast day : forecastList) {
+            String dayName = dayFormat.format(new Date(day.dt * 1000L));
+            String temp = String.format(Locale.getDefault(), "%.0f°C", day.main.temp);
+            String icon = "⛅";
+            if (day.weather != null && !day.weather.isEmpty()) {
+                icon = emojiForCondition(day.weather.get(0).main);
+            }
+            uiItems.add(new ForecastAdapter.ForecastUiItem(dayName, icon, temp));
+        }
+        forecastAdapter.setItems(uiItems);
+    }
+
+    // Turns OpenWeatherMap's condition word into a simple emoji
+    private String emojiForCondition(String condition) {
+        switch (condition) {
+            case "Clear": return "☀️";
+            case "Clouds": return "⛅";
+            case "Rain": return "🌧️";
+            case "Drizzle": return "🌦️";
+            case "Thunderstorm": return "⛈️";
+            case "Snow": return "❄️";
+            default: return "🌫️";
+        }
     }
 
     // Saves the current city if it isn't saved, removes it if it is
@@ -130,32 +247,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // PRETEND search, used only to test the spinner and error UI.
-    // TODO (integration): replace the delayed block with Person 2's getCurrentWeather() call.
-    private void searchCity(String city) {
-        hideKeyboard();
-
-        if (city.isEmpty()) {
-            showError("Please enter a city name");
-            return;
-        }
-
-        showLoading();
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            hideLoading();
-            if (city.equalsIgnoreCase("error")) {
-                showError("City not found");   // test word to see the error message
-            } else {
-                tvCityName.setText(city);
-                isFavorite = false;
-                favoriteDocId = null;
-                updateFavoriteIcon();
-                firebaseManager.addSearchHistory(city);
-            }
-        }, 1500);
-    }
-
-    // ---- Loading and error helpers (Person 2's code will call these) ----
+    // ---- Loading and error helpers ----
 
     private void showLoading() {
         progressBar.setVisibility(View.VISIBLE);
@@ -183,16 +275,5 @@ public class MainActivity extends AppCompatActivity {
                 isFavorite ? R.drawable.ic_heart_filled : R.drawable.ic_heart_outline);
         btnFavorite.setContentDescription(
                 isFavorite ? "Remove from favorites" : "Add to favorites");
-    }
-
-    // Fake data for designing the screen. Person 2's real data replaces this later.
-    private void showPlaceholderForecast() {
-        forecastAdapter.setItems(Arrays.asList(
-                new ForecastAdapter.ForecastUiItem("Mon", "⛅", "28°C"),
-                new ForecastAdapter.ForecastUiItem("Tue", "☀️", "31°C"),
-                new ForecastAdapter.ForecastUiItem("Wed", "🌧️", "26°C"),
-                new ForecastAdapter.ForecastUiItem("Thu", "⛈️", "24°C"),
-                new ForecastAdapter.ForecastUiItem("Fri", "☀️", "30°C")
-        ));
     }
 }
