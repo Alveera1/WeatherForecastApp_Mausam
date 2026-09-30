@@ -23,12 +23,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.mausam.models.Forecast;
 import com.example.mausam.models.WeatherResponse;
 import com.example.mausam.repository.WeatherRepository;
+import com.example.mausam.utils.NotificationHelper;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import android.widget.ImageView;
+import android.widget.ScrollView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -45,6 +48,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvWind;
     private TextView tvPressure;
     private RecyclerView rvForecast;
+    private ScrollView mainLayout;
+    private ImageView ivWeatherIcon;
     private ForecastAdapter forecastAdapter;
     private FirebaseManager firebaseManager;
     private WeatherRepository weatherRepository;
@@ -82,10 +87,16 @@ public class MainActivity extends AppCompatActivity {
         tvWind = findViewById(R.id.tvWind);
         tvPressure = findViewById(R.id.tvPressure);
         rvForecast = findViewById(R.id.rvForecast);
+        mainLayout = findViewById(R.id.main);
+        ivWeatherIcon = findViewById(R.id.ivWeatherIcon);
 
         // Alveera's Firebase code and Person 2's weather code
         firebaseManager = new FirebaseManager();
         weatherRepository = new WeatherRepository();
+
+        // Initialize Notification channel and background alert worker (Person 3)
+        NotificationHelper.createNotificationChannel(this);
+        WeatherAlertWorker.schedulePeriodicWork(this);
 
         // Set up the forecast row (scrolls sideways)
         forecastAdapter = new ForecastAdapter();
@@ -158,6 +169,8 @@ public class MainActivity extends AppCompatActivity {
         if (data.weather != null && !data.weather.isEmpty()) {
             currentCondition = data.weather.get(0).main;
             tvCondition.setText(data.weather.get(0).description);
+
+            applyWeatherTheme(currentCondition);
         }
 
         // A new city always starts as not-favorite; the Favorites screen shows the real status
@@ -207,6 +220,41 @@ public class MainActivity extends AppCompatActivity {
             case "Thunderstorm": return "⛈️";
             case "Snow": return "❄️";
             default: return "🌫️";
+        }
+    }
+    private void applyWeatherTheme(String condition) {
+
+        String cond = condition.toLowerCase(Locale.getDefault());
+
+        int hour = java.util.Calendar.getInstance()
+                .get(java.util.Calendar.HOUR_OF_DAY);
+
+        boolean isNight = hour < 6 || hour >= 19;
+
+        if (cond.contains("clear")) {
+
+            if (isNight) {
+                mainLayout.setBackgroundResource(R.drawable.bg_clear_night);
+                ivWeatherIcon.setImageResource(R.drawable.ic_moon);
+            } else {
+                mainLayout.setBackgroundResource(R.drawable.bg_clear_day);
+                ivWeatherIcon.setImageResource(R.drawable.ic_sun);
+            }
+
+        } else if (cond.contains("rain") || cond.contains("drizzle")) {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_rainy);
+            ivWeatherIcon.setImageResource(R.drawable.ic_rain);
+
+        } else if (cond.contains("cloud")) {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_cloudy);
+            ivWeatherIcon.setImageResource(R.drawable.ic_cloud);
+
+        } else {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_clear_day);
+            ivWeatherIcon.setImageResource(R.drawable.ic_sun);
         }
     }
 
