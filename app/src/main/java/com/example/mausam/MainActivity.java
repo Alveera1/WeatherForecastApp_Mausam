@@ -36,6 +36,8 @@ import android.widget.ScrollView;
 public class MainActivity extends AppCompatActivity {
 
     private View btnViewFavorites;
+    private View btnViewPlans;
+    private View btnLogout;
     private ImageButton btnFavorite;
     private EditText etSearchCity;
     private ProgressBar progressBar;
@@ -75,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Connect views from the layout to this code
         btnViewFavorites = findViewById(R.id.btnViewFavorites);
+        btnViewPlans = findViewById(R.id.btnViewPlans);
+        btnLogout = findViewById(R.id.btnLogout);
         btnFavorite = findViewById(R.id.btnFavorite);
         etSearchCity = findViewById(R.id.etSearchCity);
         progressBar = findViewById(R.id.progressBar);
@@ -120,6 +124,17 @@ public class MainActivity extends AppCompatActivity {
         // When tapped, open the Favorites screen
         btnViewFavorites.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, FavoritesActivity.class)));
+
+        // When tapped, open the Plans screen
+        btnViewPlans.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, PlansActivity.class)));
+
+        // When tapped, sign out and return to Login
+        btnLogout.setOnClickListener(v -> {
+            firebaseManager.signOut();
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish(); // so the back button doesn't return to Home after logout
+        });
 
         // Show a real city right away, so the screen isn't empty at first
         searchCity("Pune");

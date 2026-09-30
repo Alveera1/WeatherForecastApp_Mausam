@@ -24,4 +24,15 @@
     <string name="signup_title">Create Account</string>
     <string name="signup_button">Sign Up</string>
     <string name="login_prompt">Already have an account? Log In</string>
+    <string name="plans_title">My Plans</string>
+    <string name="empty_plans">No plans yet.\nTap + to add your first plan.</string>
+    <string name="add_plan_title">Add New Plan</string>
+    <string name="activity_hint">Activity (e.g. Outdoor Picnic)</string>
+    <string name="location_hint">Location (e.g. Pune)</string>
+    <string name="pick_date_time">Pick Date &amp; Time</string>
+    <string name="save_plan_button">Save Plan</string>
+    <string name="status_pending">⏳ Pending</string>
+    <string name="status_safe">✅ Safe</string>
+    <string name="status_risky">⚠️ Risky</string>
+    <string name="logout_button">Logout</string>
 </resources>
