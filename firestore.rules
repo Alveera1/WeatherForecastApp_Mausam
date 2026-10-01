@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Plans collection: Each user can only read, update, or delete their own plans
+    match /plans/{planId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Favorites collection: Authenticated users can manage favorites
+    match /favorites/{favoriteId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Search History collection: Logged-in users can record search history
+    match /searchHistory/{historyId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

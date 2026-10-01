@@ -1,7 +1,10 @@
 package com.example.mausam;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -13,7 +16,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -23,16 +29,22 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.mausam.models.Forecast;
 import com.example.mausam.models.WeatherResponse;
 import com.example.mausam.repository.WeatherRepository;
+import com.example.mausam.utils.NotificationHelper;
+import com.google.android.material.button.MaterialButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import android.widget.ImageView;
+import android.widget.ScrollView;
 
 public class MainActivity extends AppCompatActivity {
 
     private View btnViewFavorites;
+    private View btnViewPlans;
+    private View btnLogout;
     private ImageButton btnFavorite;
     private EditText etSearchCity;
     private ProgressBar progressBar;
@@ -45,9 +57,19 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvWind;
     private TextView tvPressure;
     private RecyclerView rvForecast;
+    private ScrollView mainLayout;
+    private ImageView ivWeatherIcon;
     private ForecastAdapter forecastAdapter;
     private FirebaseManager firebaseManager;
     private WeatherRepository weatherRepository;
+
+    // Forecast tabs
+    private MaterialButton btnTabPast;
+    private MaterialButton btnTabPresent;
+    private MaterialButton btnTabFuture;
+    private List<ForecastAdapter.ForecastUiItem> presentForecast = new ArrayList<>();
+    private List<ForecastAdapter.ForecastUiItem> pastForecast = new ArrayList<>();
+    private List<ForecastAdapter.ForecastUiItem> futureForecast = new ArrayList<>();
 
     // Whether the current city is saved, and its Firebase document id (needed to delete it)
     private boolean isFavorite = false;
@@ -56,6 +78,12 @@ public class MainActivity extends AppCompatActivity {
     // Real values from Person 2's API, filled in after a successful search
     private double currentTemperature = 0;
     private String currentCondition = "";
+
+    // Android 13+ requires asking the user before we can send notifications
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    isGranted -> { /* Either way, the app continues working normally */ });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +98,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Connect views from the layout to this code
         btnViewFavorites = findViewById(R.id.btnViewFavorites);
+        btnViewPlans = findViewById(R.id.btnViewPlans);
+        btnLogout = findViewById(R.id.btnLogout);
         btnFavorite = findViewById(R.id.btnFavorite);
         etSearchCity = findViewById(R.id.etSearchCity);
         progressBar = findViewById(R.id.progressBar);
@@ -82,16 +112,31 @@ public class MainActivity extends AppCompatActivity {
         tvWind = findViewById(R.id.tvWind);
         tvPressure = findViewById(R.id.tvPressure);
         rvForecast = findViewById(R.id.rvForecast);
+        mainLayout = findViewById(R.id.main);
+        ivWeatherIcon = findViewById(R.id.ivWeatherIcon);
+        btnTabPast = findViewById(R.id.btnTabPast);
+        btnTabPresent = findViewById(R.id.btnTabPresent);
+        btnTabFuture = findViewById(R.id.btnTabFuture);
 
         // Alveera's Firebase code and Person 2's weather code
         firebaseManager = new FirebaseManager();
         weatherRepository = new WeatherRepository();
+
+        // Initialize Notification channel and background alert worker (Person 3)
+        NotificationHelper.createNotificationChannel(this);
+        WeatherAlertWorker.schedulePeriodicWork(this);
+        askNotificationPermission();
 
         // Set up the forecast row (scrolls sideways)
         forecastAdapter = new ForecastAdapter();
         rvForecast.setLayoutManager(
                 new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvForecast.setAdapter(forecastAdapter);
+
+        // Tabs: switch which forecast list is shown
+        btnTabPast.setOnClickListener(v -> showForecastTab(pastForecast, btnTabPast));
+        btnTabPresent.setOnClickListener(v -> showForecastTab(presentForecast, btnTabPresent));
+        btnTabFuture.setOnClickListener(v -> showForecastTab(futureForecast, btnTabFuture));
 
         // Search bar: runs when the user presses the search key on the keyboard
         etSearchCity.setOnEditorActionListener((v, actionId, event) -> {
@@ -110,8 +155,29 @@ public class MainActivity extends AppCompatActivity {
         btnViewFavorites.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, FavoritesActivity.class)));
 
+        // When tapped, open the Plans screen
+        btnViewPlans.setOnClickListener(v ->
+                startActivity(new Intent(MainActivity.this, PlansActivity.class)));
+
+        // When tapped, sign out and return to Login
+        btnLogout.setOnClickListener(v -> {
+            firebaseManager.signOut();
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish(); // so the back button doesn't return to Home after logout
+        });
+
         // Show a real city right away, so the screen isn't empty at first
         searchCity("Pune");
+    }
+
+    // Android 13+ requires asking the user before we can send notifications
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
 
     // Asks Person 2's code for real weather, then shows it on the card
@@ -158,6 +224,8 @@ public class MainActivity extends AppCompatActivity {
         if (data.weather != null && !data.weather.isEmpty()) {
             currentCondition = data.weather.get(0).main;
             tvCondition.setText(data.weather.get(0).description);
+
+            applyWeatherTheme(currentCondition);
         }
 
         // A new city always starts as not-favorite; the Favorites screen shows the real status
@@ -194,7 +262,70 @@ public class MainActivity extends AppCompatActivity {
             }
             uiItems.add(new ForecastAdapter.ForecastUiItem(dayName, icon, temp));
         }
-        forecastAdapter.setItems(uiItems);
+
+        // Store the real data as "This Week", then build fake past/future around it
+        presentForecast = uiItems;
+        buildFakePastAndFuture();
+
+        // Show "This Week" by default whenever new real data arrives
+        showForecastTab(presentForecast, btnTabPresent);
+    }
+
+    // UI-only fake data: 5 days before today and 5 days after the real forecast window.
+    // TODO: these are NOT real weather, only for demo purposes.
+    private void buildFakePastAndFuture() {
+        String[] fakeIcons = {"☀️", "⛅", "🌧️", "⛈️", "☀️"};
+        SimpleDateFormat dayFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+
+        // Past: 5 days before today, oldest first
+        pastForecast = new ArrayList<>();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -5);
+        for (int i = 0; i < 5; i++) {
+            String dayName = dayFormat.format(cal.getTime());
+            int fakeTemp = 24 + (i % 4);
+            pastForecast.add(new ForecastAdapter.ForecastUiItem(
+                    dayName, fakeIcons[i % fakeIcons.length], fakeTemp + "°C"));
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        }
+
+        // Future: 5 days after the real 5-day window
+        futureForecast = new ArrayList<>();
+        cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, 5);
+        for (int i = 0; i < 5; i++) {
+            String dayName = dayFormat.format(cal.getTime());
+            int fakeTemp = 25 + (i % 5);
+            futureForecast.add(new ForecastAdapter.ForecastUiItem(
+                    dayName, fakeIcons[(i + 2) % fakeIcons.length], fakeTemp + "°C"));
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        }
+    }
+
+    // Switches the forecast row to show the given list, and highlights the active tab
+    private void showForecastTab(List<ForecastAdapter.ForecastUiItem> list, MaterialButton selectedTab) {
+        forecastAdapter.setItems(list);
+        setTabSelected(btnTabPast, selectedTab == btnTabPast);
+        setTabSelected(btnTabPresent, selectedTab == btnTabPresent);
+        setTabSelected(btnTabFuture, selectedTab == btnTabFuture);
+    }
+
+    // Makes the active tab look solid/filled, and the others outlined
+    private void setTabSelected(MaterialButton button, boolean selected) {
+        if (selected) {
+            button.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.primary, getTheme())));
+            button.setTextColor(getResources().getColor(R.color.white, getTheme()));
+            button.setStrokeWidth(0);
+        } else {
+            button.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(android.R.color.transparent, getTheme())));
+            button.setTextColor(getResources().getColor(R.color.primary, getTheme()));
+            button.setStrokeColorResource(R.color.primary);
+            button.setStrokeWidth(2);
+        }
     }
 
     // Turns OpenWeatherMap's condition word into a simple emoji
@@ -207,6 +338,41 @@ public class MainActivity extends AppCompatActivity {
             case "Thunderstorm": return "⛈️";
             case "Snow": return "❄️";
             default: return "🌫️";
+        }
+    }
+    private void applyWeatherTheme(String condition) {
+
+        String cond = condition.toLowerCase(Locale.getDefault());
+
+        int hour = java.util.Calendar.getInstance()
+                .get(java.util.Calendar.HOUR_OF_DAY);
+
+        boolean isNight = hour < 6 || hour >= 19;
+
+        if (cond.contains("clear")) {
+
+            if (isNight) {
+                mainLayout.setBackgroundResource(R.drawable.bg_clear_night);
+                ivWeatherIcon.setImageResource(R.drawable.ic_moon);
+            } else {
+                mainLayout.setBackgroundResource(R.drawable.bg_clear_day);
+                ivWeatherIcon.setImageResource(R.drawable.ic_sun);
+            }
+
+        } else if (cond.contains("rain") || cond.contains("drizzle")) {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_rainy);
+            ivWeatherIcon.setImageResource(R.drawable.ic_rain);
+
+        } else if (cond.contains("cloud")) {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_cloudy);
+            ivWeatherIcon.setImageResource(R.drawable.ic_cloud);
+
+        } else {
+
+            mainLayout.setBackgroundResource(R.drawable.bg_clear_day);
+            ivWeatherIcon.setImageResource(R.drawable.ic_sun);
         }
     }
 

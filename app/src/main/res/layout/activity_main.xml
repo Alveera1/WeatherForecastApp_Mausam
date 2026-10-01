@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="@drawable/bg_clear_day"
     android:clipToPadding="false"
     tools:context=".MainActivity">
 
@@ -37,7 +37,7 @@
                 android:textColorHint="@color/text_secondary" />
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Loading spinner (hidden until data is loading) -->
+        <!-- Loading spinner -->
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
@@ -46,7 +46,7 @@
             android:layout_marginTop="16dp"
             android:visibility="gone" />
 
-        <!-- Error message (hidden until something fails) -->
+        <!-- Error message -->
         <TextView
             android:id="@+id/tvError"
             android:layout_width="match_parent"
@@ -99,6 +99,16 @@
                         android:src="@drawable/ic_heart_outline" />
                 </LinearLayout>
 
+                <!-- Weather icon -->
+                <ImageView
+                    android:id="@+id/ivWeatherIcon"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_gravity="center_horizontal"
+                    android:contentDescription="Weather icon"
+                    android:src="@drawable/ic_sun" />
+
+                <!-- Temperature -->
                 <TextView
                     android:id="@+id/tvTemperature"
                     android:layout_width="wrap_content"
@@ -107,6 +117,7 @@
                     android:textColor="@color/primary"
                     android:textSize="48sp" />
 
+                <!-- Condition -->
                 <TextView
                     android:id="@+id/tvCondition"
                     android:layout_width="wrap_content"
@@ -115,6 +126,7 @@
                     android:textColor="@color/text_primary"
                     android:textSize="16sp" />
 
+                <!-- Feels like -->
                 <TextView
                     android:id="@+id/tvFeelsLike"
                     android:layout_width="wrap_content"
@@ -124,6 +136,7 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
 
+                <!-- Weather details -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -171,7 +184,54 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <!-- 5-day forecast row (horizontal list, empty for now) -->
+        <!-- Forecast range tabs -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTabPast"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/tab_past"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTabPresent"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="4dp"
+                android:layout_weight="1"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/tab_present"
+                android:textSize="12sp"
+                app:cornerRadius="10dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTabFuture"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/tab_future"
+                android:textSize="12sp"
+                app:cornerRadius="10dp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+        </LinearLayout>
+
+        <!-- 5-day forecast row -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvForecast"
             android:layout_width="match_parent"
@@ -180,7 +240,7 @@
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-        <!-- Button to open the Favorites screen -->
+        <!-- Favorites button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnViewFavorites"
             android:layout_width="match_parent"
@@ -190,5 +250,27 @@
             android:textSize="16sp"
             app:cornerRadius="12dp" />
 
+        <!-- Plans button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnViewPlans"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/plans_title"
+            android:textSize="16sp"
+            app:cornerRadius="12dp" />
+
+        <!-- Logout button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/logout_button"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
     </LinearLayout>
+
 </ScrollView>
