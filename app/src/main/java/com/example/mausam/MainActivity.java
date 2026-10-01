@@ -30,6 +30,7 @@ import com.example.mausam.models.Forecast;
 import com.example.mausam.models.WeatherResponse;
 import com.example.mausam.repository.WeatherRepository;
 import com.example.mausam.utils.NotificationHelper;
+import com.google.android.material.button.MaterialButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -61,6 +62,14 @@ public class MainActivity extends AppCompatActivity {
     private ForecastAdapter forecastAdapter;
     private FirebaseManager firebaseManager;
     private WeatherRepository weatherRepository;
+
+    // Forecast tabs
+    private MaterialButton btnTabPast;
+    private MaterialButton btnTabPresent;
+    private MaterialButton btnTabFuture;
+    private List<ForecastAdapter.ForecastUiItem> presentForecast = new ArrayList<>();
+    private List<ForecastAdapter.ForecastUiItem> pastForecast = new ArrayList<>();
+    private List<ForecastAdapter.ForecastUiItem> futureForecast = new ArrayList<>();
 
     // Whether the current city is saved, and its Firebase document id (needed to delete it)
     private boolean isFavorite = false;
@@ -105,6 +114,9 @@ public class MainActivity extends AppCompatActivity {
         rvForecast = findViewById(R.id.rvForecast);
         mainLayout = findViewById(R.id.main);
         ivWeatherIcon = findViewById(R.id.ivWeatherIcon);
+        btnTabPast = findViewById(R.id.btnTabPast);
+        btnTabPresent = findViewById(R.id.btnTabPresent);
+        btnTabFuture = findViewById(R.id.btnTabFuture);
 
         // Alveera's Firebase code and Person 2's weather code
         firebaseManager = new FirebaseManager();
@@ -120,6 +132,11 @@ public class MainActivity extends AppCompatActivity {
         rvForecast.setLayoutManager(
                 new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         rvForecast.setAdapter(forecastAdapter);
+
+        // Tabs: switch which forecast list is shown
+        btnTabPast.setOnClickListener(v -> showForecastTab(pastForecast, btnTabPast));
+        btnTabPresent.setOnClickListener(v -> showForecastTab(presentForecast, btnTabPresent));
+        btnTabFuture.setOnClickListener(v -> showForecastTab(futureForecast, btnTabFuture));
 
         // Search bar: runs when the user presses the search key on the keyboard
         etSearchCity.setOnEditorActionListener((v, actionId, event) -> {
@@ -245,7 +262,70 @@ public class MainActivity extends AppCompatActivity {
             }
             uiItems.add(new ForecastAdapter.ForecastUiItem(dayName, icon, temp));
         }
-        forecastAdapter.setItems(uiItems);
+
+        // Store the real data as "This Week", then build fake past/future around it
+        presentForecast = uiItems;
+        buildFakePastAndFuture();
+
+        // Show "This Week" by default whenever new real data arrives
+        showForecastTab(presentForecast, btnTabPresent);
+    }
+
+    // UI-only fake data: 5 days before today and 5 days after the real forecast window.
+    // TODO: these are NOT real weather, only for demo purposes.
+    private void buildFakePastAndFuture() {
+        String[] fakeIcons = {"☀️", "⛅", "🌧️", "⛈️", "☀️"};
+        SimpleDateFormat dayFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+
+        // Past: 5 days before today, oldest first
+        pastForecast = new ArrayList<>();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -5);
+        for (int i = 0; i < 5; i++) {
+            String dayName = dayFormat.format(cal.getTime());
+            int fakeTemp = 24 + (i % 4);
+            pastForecast.add(new ForecastAdapter.ForecastUiItem(
+                    dayName, fakeIcons[i % fakeIcons.length], fakeTemp + "°C"));
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        }
+
+        // Future: 5 days after the real 5-day window
+        futureForecast = new ArrayList<>();
+        cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, 5);
+        for (int i = 0; i < 5; i++) {
+            String dayName = dayFormat.format(cal.getTime());
+            int fakeTemp = 25 + (i % 5);
+            futureForecast.add(new ForecastAdapter.ForecastUiItem(
+                    dayName, fakeIcons[(i + 2) % fakeIcons.length], fakeTemp + "°C"));
+            cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        }
+    }
+
+    // Switches the forecast row to show the given list, and highlights the active tab
+    private void showForecastTab(List<ForecastAdapter.ForecastUiItem> list, MaterialButton selectedTab) {
+        forecastAdapter.setItems(list);
+        setTabSelected(btnTabPast, selectedTab == btnTabPast);
+        setTabSelected(btnTabPresent, selectedTab == btnTabPresent);
+        setTabSelected(btnTabFuture, selectedTab == btnTabFuture);
+    }
+
+    // Makes the active tab look solid/filled, and the others outlined
+    private void setTabSelected(MaterialButton button, boolean selected) {
+        if (selected) {
+            button.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.primary, getTheme())));
+            button.setTextColor(getResources().getColor(R.color.white, getTheme()));
+            button.setStrokeWidth(0);
+        } else {
+            button.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(android.R.color.transparent, getTheme())));
+            button.setTextColor(getResources().getColor(R.color.primary, getTheme()));
+            button.setStrokeColorResource(R.color.primary);
+            button.setStrokeWidth(2);
+        }
     }
 
     // Turns OpenWeatherMap's condition word into a simple emoji

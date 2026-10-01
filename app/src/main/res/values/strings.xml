@@ -35,4 +35,7 @@
     <string name="status_safe">✅ Safe</string>
     <string name="status_risky">⚠️ Risky</string>
     <string name="logout_button">Logout</string>
+    <string name="tab_past">Past 5</string>
+    <string name="tab_present">This Week</string>
+    <string name="tab_future">Future 5</string>
 </resources>
