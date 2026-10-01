@@ -1,7 +1,10 @@
 package com.example.mausam;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -13,7 +16,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -64,6 +70,12 @@ public class MainActivity extends AppCompatActivity {
     private double currentTemperature = 0;
     private String currentCondition = "";
 
+    // Android 13+ requires asking the user before we can send notifications
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    isGranted -> { /* Either way, the app continues working normally */ });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         // Initialize Notification channel and background alert worker (Person 3)
         NotificationHelper.createNotificationChannel(this);
         WeatherAlertWorker.schedulePeriodicWork(this);
+        askNotificationPermission();
 
         // Set up the forecast row (scrolls sideways)
         forecastAdapter = new ForecastAdapter();
@@ -138,6 +151,16 @@ public class MainActivity extends AppCompatActivity {
 
         // Show a real city right away, so the screen isn't empty at first
         searchCity("Pune");
+    }
+
+    // Android 13+ requires asking the user before we can send notifications
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
 
     // Asks Person 2's code for real weather, then shows it on the card
