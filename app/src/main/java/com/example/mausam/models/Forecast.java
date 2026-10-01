@@ -9,5 +9,6 @@ public class Forecast {
     @SerializedName("dt_txt")
     public String dtTxt;
     public MainWeather main;
+    public Wind wind;
     public List<WeatherCondition> weather;
 }
