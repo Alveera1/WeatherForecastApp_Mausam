@@ -21,6 +21,9 @@ public class WeatherAlertWorker extends Worker {
 
     public static final String WORK_NAME = "weather_alert_check";
 
+    // Reuses Person 2's forecast + rule-engine logic instead of duplicating it here
+    private final PlanWeatherCheck planWeatherCheck = new PlanWeatherCheck();
+
     public WeatherAlertWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
     }
@@ -60,29 +63,24 @@ public class WeatherAlertWorker extends Worker {
     }
 
     /**
-     * Bridge method for Person 2 (API / PlanChecker) & Person 3 (Alert Dispatch)
+     * Fetches the forecast for this plan's location/time, runs PlanChecker on it,
+     * and fires a notification if the verdict is RISKY or CAUTION.
      */
     private void checkPlanAndNotify(Plan plan) {
-        /*
-         * Person 2 integration note:
-         * Once Person 2 adds PlanChecker.java:
-         *
-         * String recommendation = PlanChecker.evaluate(plan.getActivity(), condition, windSpeed, temp);
-         * if (recommendation.startsWith("RISKY") || recommendation.startsWith("CAUTION")) {
-         *     NotificationHelper.sendWeatherAlert(
-         *             getApplicationContext(),
-         *             "⚠️ Plan Alert: " + plan.getActivity(),
-         *             recommendation + " in " + plan.getLocation(),
-         *             (int) (plan.getDateTime() % Integer.MAX_VALUE)
-         *     );
-         * }
-         */
+        PlanChecker.Result result = planWeatherCheck.check(
+                plan.getActivity(), plan.getLocation(), plan.getDateTime());
 
-        if ("risky".equalsIgnoreCase(plan.getStatus())) {
+        if (result == null) {
+            // Forecast couldn't be fetched (too far out, network issue, etc.) — skip silently
+            return;
+        }
+
+        if (result.verdict == PlanChecker.Verdict.RISKY
+                || result.verdict == PlanChecker.Verdict.CAUTION) {
             NotificationHelper.sendWeatherAlert(
                     getApplicationContext(),
                     "⚠️ Weather Alert: " + plan.getActivity(),
-                    "Adverse weather predicted for your plan in " + plan.getLocation() + ".",
+                    result.message + " in " + plan.getLocation(),
                     (int) (plan.getDateTime() % Integer.MAX_VALUE)
             );
         }
@@ -90,6 +88,7 @@ public class WeatherAlertWorker extends Worker {
 
     /**
      * Schedules periodic background checking every 3 hours.
+     * Call this once, e.g. from MainActivity.onCreate().
      */
     public static void schedulePeriodicWork(Context context) {
         PeriodicWorkRequest workRequest = new PeriodicWorkRequest.Builder(

@@ -25,6 +25,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.work.WorkManager;
+import androidx.work.OneTimeWorkRequest;
 
 import com.example.mausam.models.Forecast;
 import com.example.mausam.models.WeatherResponse;
@@ -125,6 +127,9 @@ public class MainActivity extends AppCompatActivity {
         // Initialize Notification channel and background alert worker (Person 3)
         NotificationHelper.createNotificationChannel(this);
         WeatherAlertWorker.schedulePeriodicWork(this);
+        WorkManager.getInstance(this).enqueue(
+                new OneTimeWorkRequest.Builder(WeatherAlertWorker.class).build()
+        );
         askNotificationPermission();
 
         // Set up the forecast row (scrolls sideways)
@@ -340,6 +345,7 @@ public class MainActivity extends AppCompatActivity {
             default: return "🌫️";
         }
     }
+
     private void applyWeatherTheme(String condition) {
 
         String cond = condition.toLowerCase(Locale.getDefault());

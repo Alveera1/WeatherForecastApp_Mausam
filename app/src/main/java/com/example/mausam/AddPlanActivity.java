@@ -105,15 +105,22 @@ public class AddPlanActivity extends AppCompatActivity {
         String uid = firebaseManager.getCurrentUserId();
         Plan plan = new Plan(uid, activity, location, selectedDateTime.getTimeInMillis());
 
-        firebaseManager.addPlan(plan,
-                docRef -> {
-                    hideLoading();
-                    finish(); // go back to Plans screen; the live list will show it
-                },
-                e -> {
-                    hideLoading();
-                    showError(e.getMessage() != null ? e.getMessage() : "Couldn't save plan. Try again.");
-                });
+        new Thread(() -> {
+            PlanWeatherCheck checker = new PlanWeatherCheck();
+            PlanChecker.Result result = checker.check(activity, location, selectedDateTime.getTimeInMillis());
+            android.util.Log.d("PlanDebug", "Result: " + (result == null ? "NULL" : result.toStatus()));
+            plan.setStatus(result != null ? result.toStatus() : "pending");
+
+            runOnUiThread(() -> firebaseManager.addPlan(plan,
+                    docRef -> {
+                        hideLoading();
+                        finish();
+                    },
+                    e -> {
+                        hideLoading();
+                        showError(e.getMessage() != null ? e.getMessage() : "Couldn't save plan. Try again.");
+                    }));
+        }).start();
     }
 
     private void showLoading() {
