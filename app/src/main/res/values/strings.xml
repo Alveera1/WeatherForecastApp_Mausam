@@ -15,4 +15,27 @@
     <string name="placeholder_pressure">Pressure: 1012 hPa</string>
 
     <string name="error_default">Something went wrong. Please try again.</string>
+    <string name="login_title">Welcome Back</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="login_button">Log In</string>
+    <string name="signup_prompt">Don\'t have an account? Sign Up</string>
+    <string name="login_error_empty">Please enter email and password</string>
+    <string name="signup_title">Create Account</string>
+    <string name="signup_button">Sign Up</string>
+    <string name="login_prompt">Already have an account? Log In</string>
+    <string name="plans_title">My Plans</string>
+    <string name="empty_plans">No plans yet.\nTap + to add your first plan.</string>
+    <string name="add_plan_title">Add New Plan</string>
+    <string name="activity_hint">Activity (e.g. Outdoor Picnic)</string>
+    <string name="location_hint">Location (e.g. Pune)</string>
+    <string name="pick_date_time">Pick Date &amp; Time</string>
+    <string name="save_plan_button">Save Plan</string>
+    <string name="status_pending">⏳ Pending</string>
+    <string name="status_safe">✅ Safe</string>
+    <string name="status_risky">⚠️ Risky</string>
+    <string name="logout_button">Logout</string>
+    <string name="tab_past">Past 5</string>
+    <string name="tab_present">This Week</string>
+    <string name="tab_future">Future 5</string>
 </resources>

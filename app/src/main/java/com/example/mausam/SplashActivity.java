@@ -16,9 +16,13 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        // Wait 2 seconds, then open the Home screen
+        FirebaseManager firebaseManager = new FirebaseManager();
+        boolean isLoggedIn = firebaseManager.isUserLoggedIn();
+
+        // Wait 2 seconds, then open Home if logged in, otherwise Login
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            startActivity(new Intent(SplashActivity.this, MainActivity.class));
+            Class<?> destination = isLoggedIn ? MainActivity.class : LoginActivity.class;
+            startActivity(new Intent(SplashActivity.this, destination));
             finish(); // so the back button doesn't return to the splash
         }, SPLASH_DELAY_MS);
     }
